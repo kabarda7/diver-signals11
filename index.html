@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сигнали водолаза — Гра</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/ukr-cyrillic-400-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/ukr-cyrillic-600-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/ukr-cyrillic-700-normal.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --deep: #0a2540;
+    --sea: #0d4f8b;
+    --aqua: #1ca8d8;
+    --foam: #e8f4fb;
+    --gold: #ffc857;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --glass: rgba(255,255,255,0.08);
+  }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: linear-gradient(180deg, #0a2540 0%, #0d4f8b 50%, #1ca8d8 100%);
+    min-height: 100vh;
+    color: #fff;
+    overflow-x: hidden;
+    position: relative;
+  }
+  .bubbles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+  .bubble {
+    position: absolute; bottom: -100px;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(255,255,255,0.1));
+    border-radius: 50%;
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0% { transform: translateY(0) translateX(0); opacity: 0; }
+    10% { opacity: 0.8; }
+    100% { transform: translateY(-110vh) translateX(40px); opacity: 0; }
+  }
+
+  .app {
+    position: relative; z-index: 1;
+    max-width: 900px; margin: 0 auto;
+    padding: 30px 20px 60px;
+    min-height: 100vh;
+  }
+
+  header {
+    text-align: center; margin-bottom: 30px;
+  }
+  .logo {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--gold); font-weight: 600;
+  }
+  .logo-icon {
+    width: 42px; height: 42px;
+    background: var(--gold); border-radius: 50%;
+    display: grid; place-items: center;
+    box-shadow: 0 0 20px rgba(255,200,87,0.5);
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 44px);
+    margin-top: 14px;
+    background: linear-gradient(90deg, #fff, #a8e0f5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+  }
+  .subtitle { color: rgba(255,255,255,0.75); margin-top: 8px; font-size: 15px; }
+
+  .screen { animation: fadeIn 0.5s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .menu-card {
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 24px;
+    padding: 36px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .menu-card h2 {
+    font-size: 22px; margin-bottom: 8px;
+  }
+  .menu-card p { color: rgba(255,255,255,0.7); margin-bottom: 24px; font-size: 14px; }
+
+  .mode-group { margin-bottom: 24px; }
+  .mode-label {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--gold); margin-bottom: 12px; font-weight: 600;
+  }
+  .mode-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mode-btn {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.15);
+    color: #fff; padding: 18px 14px;
+    border-radius: 14px; cursor: pointer;
+    font-family: inherit; font-size: 15px; font-weight: 600;
+    transition: all 0.25s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .mode-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+  .mode-btn.active {
+    background: linear-gradient(135deg, var(--aqua), var(--sea));
+    border-color: var(--gold);
+    box-shadow: 0 8px 24px rgba(28,168,216,0.4);
+  }
+  .mode-btn .emoji { font-size: 26px; }
+  .mode-btn small { font-size: 11px; font-weight: 400; opacity: 0.8; }
+
+  .start-btn {
+    width: 100%; padding: 18px;
+    background: linear-gradient(135deg, var(--gold), #ff9a3c);
+    border: none; border-radius: 14px;
+    color: var(--deep); font-family: inherit;
+    font-size: 17px; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.25s;
+    box-shadow: 0 10px 30px rgba(255,200,87,0.3);
+  }
+  .start-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(255,200,87,0.5); }
+  .start-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .game-hud {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 24px;
+  }
+  .hud-item {
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 14px;
+    text-align: center;
+  }
+  .hud-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.6); margin-bottom: 4px;
+  }
+  .hud-value { font-size: 24px; font-weight: 700; color: var(--gold); }
+  .hud-value.green { color: var(--green); }
+  .hud-value.red { color: var(--red); }
+
+  .signal-card {
+    background: linear-gradient(135deg, rgba(13,79,139,0.6), rgba(10,37,64,0.8));
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 24px;
+    padding: 30px 24px;
+    margin-bottom: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .signal-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at top, rgba(28,168,216,0.2), transparent 70%);
+    pointer-events: none;
+  }
+  .signal-tag {
+    display: inline-block;
+    background: rgba(255,200,87,0.15);
+    color: var(--gold);
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 12px; letter-spacing: 1.5px;
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .signal-question {
+    font-size: 15px; color: rgba(255,255,255,0.7);
+    margin-bottom: 20px;
+  }
+  .signal-visual {
+    margin: 20px 0;
+    height: 120px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .rope {
+    width: 8px; height: 100%;
+    background: linear-gradient(180deg, #8b6f47, #5d4a2f);
+    border-radius: 4px;
+    position: relative;
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+  }
+  .rope::before, .rope::after {
+    content: ''; position: absolute; left: 50%;
+    width: 20px; height: 20px; border-radius: 50%;
+    transform: translateX(-50%);
+  }
+  .rope::before {
+    top: 0;
+    background: radial-gradient(circle at 30% 30%, #ddd, #888);
+    box-shadow: 0 0 15px rgba(255,255,255,0.3);
+  }
+  .rope::after {
+    bottom: 0;
+    background: radial-gradient(circle at 30% 30%, #555, #222);
+  }
+  .tug-indicator {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 40px;
+    animation: tugPulse 0.6s ease infinite;
+  }
+  @keyframes tugPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.7; }
+  }
+  .signal-name {
+    font-size: clamp(22px, 4vw, 32px);
+    font-weight: 700;
+    margin-top: 10px;
+    line-height: 1.3;
+  }
+  .signal-number {
+    color: var(--gold);
+    font-size: 14px;
+    margin-top: 8px;
+    letter-spacing: 2px;
+  }
+
+  .answers {
+    display: grid; gap: 12px;
+  }
+  .answer-btn {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255,255,255,0.12);
+    color: #fff;
+    padding: 18px 20px;
+    border-radius: 16px;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.4;
+    transition: all 0.25s;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .answer-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.3);
+    transform: translateX(4px);
+  }
+  .answer-letter {
+    flex-shrink: 0;
+    width: 34px; height: 34px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-weight: 700; color: var(--gold);
+    font-size: 14px;
+  }
+  .answer-btn.correct {
+    background: rgba(46,204,113,0.2);
+    border-color: var(--green);
+    animation: correctPop 0.4s ease;
+  }
+  .answer-btn.correct .answer-letter { background: var(--green); color: #fff; }
+  .answer-btn.wrong {
+    background: rgba(231,76,60,0.2);
+    border-color: var(--red);
+  }
+  .answer-btn.wrong .answer-letter { background: var(--red); color: #fff; }
+  @keyframes correctPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+
+  .feedback {
+    margin-top: 20px;
+    padding: 16px 20px;
+    border-radius: 14px;
+    font-size: 14px;
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+  .feedback.show { display: block; }
+  .feedback.correct {
+    background: rgba(46,204,113,0.15);
+    border: 1px solid rgba(46,204,113,0.4);
+    color: #a8f0c4;
+  }
+  .feedback.wrong {
+    background: rgba(231,76,60,0.15);
+    border: 1px solid rgba(231,76,60,0.4);
+    color: #ffb4a8;
+  }
+  .feedback strong { color: #fff; }
+
+  .next-btn {
+    margin-top: 16px;
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, var(--aqua), var(--sea));
+    border: none; border-radius: 14px;
+    color: #fff; font-family: inherit;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: none;
+  }
+  .next-btn.show { display: block; }
+  .next-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(28,168,216,0.4); }
+
+  .result-card {
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 24px;
+    padding: 40px 28px;
+    text-align: center;
+  }
+  .result-emoji { font-size: 72px; margin-bottom: 16px; }
+  .result-title { font-size: 32px; margin-bottom: 8px; }
+  .result-score {
+    font-size: 56px; font-weight: 700;
+    background: linear-gradient(90deg, var(--gold), #ff9a3c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 16px 0;
+  }
+  .result-subtitle { color: rgba(255,255,255,0.7); margin-bottom: 24px; }
+  .result-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-box {
+    background: rgba(255,255,255,0.05);
+    border-radius: 14px; padding: 16px;
+  }
+  .stat-box .num { font-size: 28px; font-weight: 700; }
+  .stat-box .lbl { font-size: 12px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; }
+
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .btn-secondary {
+    padding: 16px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 14px;
+    color: #fff; font-family: inherit;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+
+  @media (max-width: 500px) {
+    .mode-options { grid-template-columns: 1fr; }
+    .btn-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="bubbles" id="bubbles"></div>
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="10" r="6" fill="#0a2540"/>
+          <circle cx="12" cy="10" r="4" fill="#1ca8d8"/>
+          <rect x="10" y="16" width="4" height="4" fill="#0a2540"/>
+          <path d="M8 20 L16 20 L15 22 L9 22 Z" fill="#0a2540"/>
+        </svg>
+      </div>
+      <span>Дайвінг Тренування</span>
+    </div>
+    <h1>Сигнали водолаза</h1>
+    <p class="subtitle">Вивчи умовні сигнали зв'язку з водолазами у формі гри</p>
+  </header>
+
+  <div id="screen"></div>
+</div>
+
+<script>
+  // Бульбашки
+  (function makeBubbles(){
+    const c = document.getElementById('bubbles');
+    for (let i = 0; i < 25; i++) {
+      const b = document.createElement('div');
+      b.className = 'bubble';
+      const s = Math.random() * 30 + 8;
+      b.style.width = s + 'px';
+      b.style.height = s + 'px';
+      b.style.left = Math.random() * 100 + '%';
+      b.style.animationDuration = (Math.random() * 10 + 8) + 's';
+      b.style.animationDelay = (Math.random() * 10) + 's';
+      c.appendChild(b);
+    }
+  })();
+
+  // Дані сигналів
+  const signals = [
+    { id: 1, name: "Смикнути 1 раз", icon: "⚡", type: "jerk", count: 1 },
+    { id: 2, name: "Смикнути 2 рази", icon: "⚡⚡", type: "jerk", count: 2 },
+    { id: 3, name: "Смикнути 3 рази", icon: "⚡⚡⚡", type: "jerk", count: 3 },
+    { id: 4, name: "Смикнути 4 рази", icon: "⚡⚡⚡⚡", type: "jerk", count: 4 },
+    { id: 5, name: "Часті смикання понад 4 рази", icon: "⚡⚡⚡⚡⚡…", type: "jerk", count: 5 },
+    { id: 6, name: "Потрясти 1 раз", icon: "🌊", type: "shake", count: 1 },
+    { id: 7, name: "Потрясти 2 рази", icon: "🌊🌊", type: "shake", count: 2 },
+    { id: 8, name: "Потрясти 3 рази", icon: "🌊🌊🌊", type: "shake", count: 3 },
+    { id: 9, name: "Смикнути 1 раз і потрясти", icon: "⚡🌊", type: "combo", count: 9 },
+    { id: 10, name: "Смикнути 2 рази і потрясти", icon: "⚡⚡🌊", type: "combo", count: 10 },
+    { id: 11, name: "Смикнути 1 раз і потягнути", icon: "⚡➡", type: "combo", count: 11 },
+    { id: 12, name: "Смикнути 2 рази і потягнути", icon: "⚡⚡➡", type: "combo", count: 12 },
+    { id: 13, name: "Смикнути, потрясти і смикнути", icon: "⚡🌊⚡", type: "combo", count: 13 }
+  ];
+
+  const meanings = {
+    1: {
+      toVent: "Як почуваєш? Повтори. Вибирай слабину до себе",
+      toOther: "Як почуваєш? Повтори. Вибирай слабину до себе",
+      fromVent: "Я на ґрунті. Почуваю себе добре. Вибери слабину. Повтори",
+      fromOther: "Я на ґрунті. Почуваю себе добре. Вибери слабину. Повтори"
+    },
+    2: {
+      toVent: "Провентилюй скафандр",
+      toOther: "Перевір запас повітря",
+      fromVent: "Більше повітря",
+      fromOther: "Роблю заміну газової суміші у мішку. Перевірив запас повітря"
+    },
+    3: {
+      toVent: "Починаємо підйом. Виходь на поверхню",
+      toOther: "Починаємо підйом. Виходь на поверхню",
+      fromVent: "Піднімай нагору. Виходжу на поверхню",
+      fromOther: "Піднімай нагору. Виходжу на поверхню"
+    },
+    4: {
+      toVent: "Даємо менше повітря",
+      toOther: "Даємо менше повітря",
+      fromVent: "Менше повітря",
+      fromOther: "Менше повітря"
+    },
+    5: {
+      toVent: "—",
+      toOther: "—",
+      fromVent: "Тривога! Мені погано! Піднімай скоріше!",
+      fromOther: "Тривога! Мені погано! Піднімай скоріше!"
+    },
+    6: {
+      toVent: "Стоп. Припини спуск (підйом, рух далі)",
+      toOther: "Стоп. Припини спуск (підйом, рух далі)",
+      fromVent: "Стоп. Зупини спуск (підйом)!",
+      fromOther: "Стоп. Зупини спуск (підйом)!"
+    },
+    7: {
+      toVent: "Продовжуй спуск (рух, іди прямо)",
+      toOther: "Продовжуй спуск (рух, іди прямо)",
+      fromVent: "Продовжуй спуск. Потруй шланг-кабель",
+      fromOther: "Продовжуй спуск. Потруй шланг-кабель"
+    },
+    8: {
+      toVent: "Стій на місці! Спускаємо водолаза",
+      toOther: "Стій на місці! Спускаємо водолаза",
+      fromVent: "Заплутався, не можу вийти без допомоги",
+      fromOther: "Заплутався, не можу вийти без допомоги"
+    },
+    9: {
+      toVent: "Іди праворуч",
+      toOther: "Іди праворуч",
+      fromVent: "Іду праворуч",
+      fromOther: "Іду праворуч"
+    },
+    10: {
+      toVent: "Іди ліворуч",
+      toOther: "Іди ліворуч",
+      fromVent: "Іду ліворуч",
+      fromOther: "Іду ліворуч"
+    },
+    11: {
+      toVent: "Подаємо інструмент",
+      toOther: "Подаємо інструмент",
+      fromVent: "Подавайте інструмент",
+      fromOther: "Подавайте інструмент"
+    },
+    12: {
+      toVent: "Подаємо кінець",
+      toOther: "Подаємо кінець",
+      fromVent: "Подавайте кінець",
+      fromOther: "Подавайте кінець"
+    },
+    13: {
+      toVent: "Запасний сигнал",
+      toOther: "Запасний сигнал",
+      fromVent: "Запасний сигнал",
+      fromOther: "Запасний сигнал"
+    }
+  };
+
+  const state = {
+    direction: null,
+    equipment: null,
+    questions: [],
+    current: 0,
+    score: 0,
+    total: 10,
+    answered: false
+  };
+
+  const screen = document.getElementById('screen');
+
+  function renderMenu() {
+    screen.innerHTML = `
+      <div class="screen">
+        <div class="menu-card">
+          <h2>🎯 Обрати режим гри</h2>
+          <p>Обери напрямок сигналу та тип спорядження водолаза</p>
+
+          <div class="mode-group">
+            <div class="mode-label">🧭 Напрямок сигналу</div>
+            <div class="mode-options">
+              <button class="mode-btn" data-dir="to">
+                <span class="emoji">⬇️</span>
+                <span>До водолаза</span>
+                <small>Ти на поверхні</small>
+              </button>
+              <button class="mode-btn" data-dir="from">
+                <span class="emoji">⬆️</span>
+                <span>Від водолаза</span>
+                <small>Водолаз подає сигнал</small>
+              </button>
+            </div>
+          </div>
+
+          <div class="mode-group">
+            <div class="mode-label">🤿 Тип спорядження</div>
+            <div class="mode-options">
+              <button class="mode-btn" data-eq="vent">
+                <span class="emoji">💨</span>
+                <span>Вентилюється</span>
+                <small>З подачею повітря</small>
+              </button>
+              <button class="mode-btn" data-eq="other">
+                <span class="emoji">🫁</span>
+                <span>Інші схеми</span>
+                <small>Відкрита/напівзамкнена/замкнена</small>
+              </button>
+            </div>
+          </div>
+
+          <button class="start-btn" id="startBtn" disabled>Почати гру</button>
+        </div>
+      </div>
+    `;
+
+    const btns = screen.querySelectorAll('.mode-btn');
+    btns.forEach(b => {
+      b.addEventListener('click', () => {
+        if (b.dataset.dir) {
+          state.direction = b.dataset.dir;
+          screen.querySelectorAll('[data-dir]').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+        } else if (b.dataset.eq) {
+          state.equipment = b.dataset.eq;
+          screen.querySelectorAll('[data-eq]').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+        }
+        document.getElementById('startBtn').disabled = !(state.direction && state.equipment);
+      });
+    });
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+  }
+
+  function startGame() {
+    const available = signals.filter(s => {
+      const key = state.direction === 'to'
+        ? (state.equipment === 'vent' ? 'toVent' : 'toOther')
+        : (state.equipment === 'vent' ? 'fromVent' : 'fromOther');
+      return meanings[s.id][key] !== "—";
+    });
+
+    const shuffled = [...available].sort(() => Math.random() - 0.5);
+    state.questions = shuffled.slice(0, Math.min(state.total, shuffled.length));
+    state.current = 0;
+    state.score = 0;
+
+    renderQuestion();
+  }
+
+  function getMeaningKey() {
+    return state.direction === 'to'
+      ? (state.equipment === 'vent' ? 'toVent' : 'toOther')
+      : (state.equipment === 'vent' ? 'fromVent' : 'fromOther');
+  }
+
+  function getDirectionLabel() {
+    return state.direction === 'to' ? 'До водолаза' : 'Від водолаза';
+  }
+  function getEquipmentLabel() {
+    return state.equipment === 'vent' ? 'Вентилюється' : 'Інші схеми дихання';
+  }
+
+  function renderQuestion() {
+    const q = state.questions[state.current];
+    const key = getMeaningKey();
+    const correctAnswer = meanings[q.id][key];
+
+    const others = signals
+      .filter(s => s.id !== q.id && meanings[s.id][key] !== "—")
+      .map(s => meanings[s.id][key]);
+    const uniqueOthers = [...new Set(others)];
+    const shuffledOthers = uniqueOthers.sort(() => Math.random() - 0.5).slice(0, 3);
+
+    const allAnswers = [correctAnswer, ...shuffledOthers].sort(() => Math.random() - 0.5);
+    const letters = ['А', 'Б', 'В', 'Г'];
+
+    screen.innerHTML = `
+      <div class="screen">
+        <div class="game-hud">
+          <div class="hud-item">
+            <div class="hud-label">Питання</div>
+            <div class="hud-value">${state.current + 1}/${state.questions.length}</div>
+          </div>
+          <div class="hud-item">
+            <div class="hud-label">Правильно</div>
+            <div class="hud-value green">${state.score}</div>
+          </div>
+          <div class="hud-item">
+            <div class="hud-label">Режим</div>
+            <div class="hud-value" style="font-size:14px;color:#fff;">${getDirectionLabel()}</div>
+          </div>
+        </div>
+
+        <div class="signal-card">
+          <div class="signal-tag">${getDirectionLabel()} · ${getEquipmentLabel()}</div>
+          <div class="signal-question">Що означає цей сигнал?</div>
+          <div class="signal-visual">
+            <div class="rope">
+              <div class="tug-indicator">${q.icon}</div>
+            </div>
+          </div>
+          <div class="signal-name">${q.name}</div>
+          <div class="signal-number">СИГНАЛ №${q.id}</div>
+        </div>
+
+        <div class="answers" id="answers">
+          ${allAnswers.map((a, i) => `
+            <button class="answer-btn" data-idx="${i}">
+              <span class="answer-letter">${letters[i]}</span>
+              <span>${a}</span>
+            </button>
+          `).join('')}
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+        <button class="next-btn" id="nextBtn">
+          ${state.current + 1 === state.questions.length ? 'Показати результат →' : 'Наступне питання →'}
+        </button>
+      </div>
+    `;
+
+    state.answered = false;
+
+    screen.querySelectorAll('.answer-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleAnswer(btn, allAnswers, correctAnswer));
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      state.current++;
+      if (state.current >= state.questions.length) {
+        renderResult();
+      } else {
+        renderQuestion();
+      }
+    });
+  }
+
+  function handleAnswer(btn, allAnswers, correctAnswer) {
+    if (state.answered) return;
+    state.answered = true;
+
+    const chosen = allAnswers[parseInt(btn.dataset.idx)];
+    const isCorrect = chosen === correctAnswer;
+
+    if (isCorrect) state.score++;
+
+    screen.querySelectorAll('.answer-btn').forEach((b, i) => {
+      b.disabled = true;
+      if (allAnswers[i] === correctAnswer) b.classList.add('correct');
+      else if (b === btn) b.classList.add('wrong');
+    });
+
+    const fb = document.getElementById('feedback');
+    if (isCorrect) {
+      fb.className = 'feedback show correct';
+      fb.innerHTML = `✅ <strong>Правильно!</strong> Сигнал «${state.questions[state.current].name}» означає саме це.`;
+    } else {
+      fb.className = 'feedback show wrong';
+      fb.innerHTML = `❌ <strong>Неправильно.</strong> Правильна відповідь: <em>${correctAnswer}</em>`;
+    }
+
+    document.getElementById('nextBtn').classList.add('show');
+  }
+
+  function renderResult() {
+    const pct = Math.round((state.score / state.questions.length) * 100);
+    let emoji = '🏆', title = 'Чудово!';
+    if (pct < 50) { emoji = '🌊'; title = 'Треба тренуватися'; }
+    else if (pct < 80) { emoji = '🤿'; title = 'Непоганий результат!'; }
+    else if (pct < 100) { emoji = '⭐'; title = 'Відмінно!'; }
+
+    screen.innerHTML = `
+      <div class="screen">
+        <div class="result-card">
+          <div class="result-emoji">${emoji}</div>
+          <div class="result-title">${title}</div>
+          <div class="result-subtitle">Ти завершив гру «${getDirectionLabel()}»</div>
+          <div class="result-score">${state.score}/${state.questions.length}</div>
+          <div class="result-subtitle" style="margin-bottom:20px;">Правильних відповідей: ${pct}%</div>
+
+          <div class="result-stats">
+            <div class="stat-box">
+              <div class="num" style="color:var(--green);">${state.score}</div>
+              <div class="lbl">Правильно</div>
+            </div>
+            <div class="stat-box">
+              <div class="num" style="color:var(--red);">${state.questions.length - state.score}</div>
+              <div class="lbl">Помилок</div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-secondary" id="menuBtn">🏠 У меню</button>
+            <button class="start-btn" id="retryBtn" style="padding:16px;">🔄 Грати ще</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('menuBtn').addEventListener('click', () => {
+      state.direction = null;
+      state.equipment = null;
+      renderMenu();
+    });
+    document.getElementById('retryBtn').addEventListener('click', startGame);
+  }
+
+  renderMenu();
+</script>
+</body>
+</html>
+
